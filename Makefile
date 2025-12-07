@@ -1,31 +1,37 @@
 CXX = g++
-CXXFLAGS = -O3 -march=native -funroll-loops -flto -pthread -std=c++14
+CXXFLAGS = -O3  -funroll-loops -flto -pthread -std=c++14
+LDFLAGS = -flto
 LIBS = /usr/local/lib/libcryptopp.a -lpthread -lm
 
-# 客户端需要的所有.cpp文件
+# 客户端源码
 CLIENT_CPP = client.cpp ringoram.cpp block.cpp bucket.cpp \
              param.cpp CryptoUtil.cpp Vocabulary.cpp Vector.cpp \
              Node.cpp InvertedIndex.cpp Document.cpp MBR.cpp \
              NodeSerializer.cpp Query.cpp RingoramStorage.cpp IRTree.cpp
 
-# 服务器需要的所有.cpp文件
+# 服务器源码
 SERVER_CPP = storage_server.cpp block.cpp bucket.cpp \
              ServerStorage.cpp param.cpp CryptoUtil.cpp
 
-# 默认编译所有
+# 自动生成对应的 .o 文件列表
+CLIENT_OBJ = $(CLIENT_CPP:.cpp=.o)
+SERVER_OBJ = $(SERVER_CPP:.cpp=.o)
+
+# 默认任务
 all: client server
 
-# 编译客户端（生成client可执行文件）
-client: $(CLIENT_CPP)
-	$(CXX) $(CXXFLAGS) -o client $^ $(LIBS)
+client: $(CLIENT_OBJ)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-# 编译服务器（生成server可执行文件）
-server: $(SERVER_CPP)
-	$(CXX) $(CXXFLAGS) -o server $^ $(LIBS) -lboost_system
+server: $(SERVER_OBJ)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS) -lboost_system
 
-# 清理
+# 通用编译规则
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 clean:
-	rm -f client server *.o
+	rm -f client server $(CLIENT_OBJ) $(SERVER_OBJ)
 
 run_test: client server
 	@echo "Starting server in background..."
@@ -37,10 +43,8 @@ run_test: client server
 	echo "Stopping server..."; \
 	kill $$SERVER_PID 2>/dev/null || true
 
-# 重新编译
 rebuild: clean all
 
-# 显示帮助
 help:
 	@echo "可用命令:"
 	@echo "  make all        - 编译客户端和服务器"
@@ -49,7 +53,6 @@ help:
 	@echo "  make clean      - 清理编译文件"
 	@echo "  make rebuild    - 重新编译"
 	@echo "  make run_test   - 运行客户端测试"
-	@echo "  make run_server - 运行服务器"
 	@echo "  make help       - 显示此帮助"
 
-.PHONY: all clean run_test run_server rebuild help
+.PHONY: all clean run_test rebuild help
